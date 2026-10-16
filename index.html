@@ -480,10 +480,11 @@ $("#adminBtn").onclick=()=>{
 $("#admCancel").onclick=()=>$("#admOv").hidden=true;
 $("#admOv").addEventListener("click",e=>{if(e.target.id==="admOv")$("#admOv").hidden=true});
 $("#admForm").addEventListener("submit",async e=>{
-  e.preventDefault();const key=$("#admKey").value.trim();if(!key)return;
+  e.preventDefault();const key=$("#admKey").value.replace(/[^\x21-\x7e]/g,"");if(!key)return;
+  if(!/^(ghp_|github_pat_)[A-Za-z0-9_]+$/.test(key)){const el=$("#admErr");el.hidden=false;el.textContent="Das sieht nicht wie ein GitHub-Schlüssel aus. Er muss mit „ghp_“ oder „github_pat_“ anfangen.";return}
   $("#admGo").disabled=true;
   try{await login(key,false);$("#admOv").hidden=true;toast("Angemeldet. Du kannst jetzt bearbeiten.")}
-  catch(err){const el=$("#admErr");el.hidden=false;el.textContent=err.status===401?"Dieser Schlüssel ist ungültig.":err.status?"Dieser Schlüssel hat keinen Schreibzugriff auf die Liste.":"Keine Verbindung zu GitHub."}
+  catch(err){const el=$("#admErr");el.hidden=false;el.textContent=err.status===401?"Dieser Schlüssel ist ungültig oder wurde gelöscht.":err.status?"GitHub hat den Schlüssel abgelehnt (Fehler "+err.status+").":"Keine Verbindung zu GitHub. Technischer Grund: "+(err&&err.message||"unbekannt")}
   finally{$("#admGo").disabled=false}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#admOv").hidden)$("#admOv").hidden=true});
@@ -506,7 +507,7 @@ $("#impFile").addEventListener("change",async e=>{
 render();
 (async()=>{
   let saved=null;try{saved=localStorage.getItem(TKEY)}catch{}
-  if(saved){try{await login(saved,true);return}catch{}}
+  if(saved){saved=saved.replace(/[^\x21-\x7e]/g,"");try{await login(saved,true);return}catch{}}
   loadPublic();
 })();
 </script>
