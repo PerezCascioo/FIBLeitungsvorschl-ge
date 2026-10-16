@@ -470,8 +470,15 @@ function askClear(){
   $("#clrYes").onclick=async()=>{await commit([]);toast("Liste geleert")};$("#clrNo").onclick=renderTabs;
 }
 
+let namesLoaded=false;
+async function loadNames(){
+  if(namesLoaded)return;namesLoaded=true;
+  let local=null;try{local=localStorage.getItem(NKEY)}catch{}
+  if(local)return;
+  try{const res=await fetch("listen.json?t="+Date.now(),{cache:"no-store"});if(res.ok){const d=await res.json();if(Array.isArray(d.namen))names=names.map((x,i)=>d.namen[i]||x)}}catch{}
+}
 async function loadList(){
-  await Promise.all([0,1,2].map(fetchPublished));
+  await Promise.all([0,1,2].map(fetchPublished).concat([loadNames()]));
   if(!admin&&cur===0&&!published[0])showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.");else showNotice("");
   items=listFor(cur);render();renderTabs();adminInfo();
 }
