@@ -28,6 +28,8 @@ html,body{margin:0}
 [hidden]{display:none!important}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.bg{position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(12,17,24,.62) 0%,rgba(12,17,24,.84) 45%,rgba(12,17,24,.96) 85%),url("bg.jpg") center 35%/cover no-repeat}
+.stat,.row,.dept{backdrop-filter:blur(2px)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
 .wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px;display:flex;flex-direction:column;gap:22px}
 
@@ -152,6 +154,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
 <body>
 
 
+<div class="bg" aria-hidden="true"></div>
 <div class="wrap">
   <header>
     <svg class="seal" viewBox="0 0 64 64" aria-hidden="true">
