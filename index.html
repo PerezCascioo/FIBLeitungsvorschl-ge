@@ -163,7 +163,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
     <div class="head-txt">
       <div class="eyebrow">Federal Investigation Bureau · Grand DE03 · Intern</div>
       <h1>Leitungsauswahl</h1>
-      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v8</span></p>
+      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v9</span></p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <span class="adminbadge" id="admBadge" hidden>Admin</span>
@@ -267,8 +267,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
       <div class="eyebrow">Zugang</div>
       <h2>Admin-Anmeldung</h2>
     </div>
-    <label>Admin-Passwort<input id="admKey" type="password" required placeholder="Passwort" spellcheck="false"></label>
-    <label id="setupWrap" hidden>Einmalige Einrichtung: GitHub-Schlüssel<input id="admTok" type="password" placeholder="github_pat_… oder ghp_…" spellcheck="false"></label>
+    <label>Admin-Code<input id="admKey" type="password" required placeholder="Code" spellcheck="false"></label>
     <div class="err" id="admErr" hidden></div>
     <div class="help">
       <span>Nur für die Leitung. Nach der Anmeldung kannst du Kandidaten anlegen, ändern und löschen.</span>
@@ -406,101 +405,45 @@ async function doDel(){
 }
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,3600)}
 
-// Speicher: kandidaten.json im GitHub-Repository. Admins melden sich mit Passwort an;
-// der GitHub-Schlüssel liegt verschlüsselt (mit dem Passwort) in admin.json und wird nur einmal eingerichtet.
+// Speicher: veröffentlichte Liste aus kandidaten.json; Admin-Änderungen werden auf diesem Gerät gespeichert.
 const PW_HASH="5d778b65373f9e6c63a50de7bb2efad14f5f8b22d4103431927890d864cafa87";
-const GH=(()=>{const m=location.hostname.match(/^([^.]+)\.github\.io$/i);const seg=location.pathname.split("/").filter(Boolean)[0];
-  return m&&seg&&!/\.html?$/i.test(seg)?{owner:m[1],repo:seg}:{owner:"PerezCascioo",repo:"FIBLeitungsvorschl-ge"}})();
-const API="https://api.github.com/repos/"+GH.owner+"/"+GH.repo+"/contents/";
-const AKEY="fib-de03-admin-pw";
-let admin=false,token=null,sha=null,pw=null;
-
-const enc=new TextEncoder(),dec=new TextDecoder();
-function b64e(u8){let s="";for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)}
-function b64d(x){return Uint8Array.from(atob(x.replace(/\s/g,"")),c=>c.charCodeAt(0))}
-async function sha256(t){const b=await crypto.subtle.digest("SHA-256",enc.encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
-async function keyFrom(pass,salt){const base=await crypto.subtle.importKey("raw",enc.encode(pass),"PBKDF2",false,["deriveKey"]);
-  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:150000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
-async function seal(text,pass){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
-  const k=await keyFrom(pass,salt);const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},k,enc.encode(text)));
-  return {salt:b64e(salt),iv:b64e(iv),data:b64e(ct)}}
-async function unseal(o,pass){const k=await keyFrom(pass,b64d(o.salt));return dec.decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:b64d(o.iv)},k,b64d(o.data)))}
-
-async function ghGet(file,auth){
-  const res=await fetch(API+file+"?ref=main&t="+Date.now(),{cache:"no-store",headers:{Accept:"application/vnd.github+json",...(auth&&token?{Authorization:"Bearer "+token}:{})}});
-  if(res.status===404)return null;
-  if(!res.ok){const e=new Error("GitHub "+res.status);e.status=res.status;throw e}
-  const j=await res.json();return {sha:j.sha,text:dec.decode(b64d(j.content))};
-}
-async function ghPut(file,text,fileSha,msg){
-  const body={message:msg,branch:"main",content:b64e(enc.encode(text))};if(fileSha)body.sha=fileSha;
-  const res=await fetch(API+file,{method:"PUT",cache:"no-store",headers:{Accept:"application/vnd.github+json","Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body)});
-  if(!res.ok){let m="";try{m=(await res.json()).message||""}catch{}const e=new Error("GitHub "+res.status+(m?": "+m:""));e.status=res.status;e.ghmsg=m;throw e}
-  return (await res.json()).content.sha;
-}
+const AKEY="fib-de03-admin",LKEY="fib-de03-liste";
+let admin=false;
+async function sha256(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function showNotice(t){const n=$("#notice");n.hidden=!t;n.textContent=t||""}
-function errText(e){
-  if(e&&(e.status===403||e.status===404||e.status===401))return "GitHub erlaubt das Speichern nicht (Fehler "+e.status+"). Der GitHub-Schlüssel braucht das Recht „Contents: Read and write“.";
-  if(e&&(e.status===409||e.status===422)){loadList(true).catch(()=>{});return "Die Liste wurde gerade woanders geändert und neu geladen. Bitte nochmal speichern."}
-  return "Speichern fehlgeschlagen"+(e&&e.status?" (Fehler "+e.status+")":"")+". Bitte nochmal versuchen.";
-}
-
-async function loadList(viaApi){
-  try{
-    let d;
-    if(viaApi){const f=await ghGet("kandidaten.json",true);sha=f?f.sha:null;d=f?JSON.parse(f.text):{kandidaten:[]}}
-    else{const res=await fetch("kandidaten.json?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw 0;d=await res.json()}
-    items=Array.isArray(d)?d:(d.kandidaten||[]);showNotice("");
-  }catch{if(!items.length)showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.")}
+function errText(){return "Speichern auf diesem Gerät nicht möglich. Ist der private Modus an?"}
+function localList(){try{const v=localStorage.getItem(LKEY);return v?JSON.parse(v):null}catch{return null}}
+async function loadList(){
+  const loc=admin?localList():null;
+  if(loc){items=loc;render();return}
+  try{const res=await fetch("kandidaten.json?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw 0;const d=await res.json();items=Array.isArray(d)?d:(d.kandidaten||[]);showNotice("")}
+  catch{if(!items.length)showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.")}
   render();
 }
-async function commit(next,msg){
-  if(!admin||!token)throw new Error("Nicht als Admin angemeldet");
-  sha=await ghPut("kandidaten.json",JSON.stringify({app:"fib-de03-leitung",aktualisiert:new Date().toISOString(),kandidaten:next},null,2)+"\n",sha,msg);
-  items=next;render();
+async function commit(next){
+  if(!admin)throw new Error("Nicht als Admin angemeldet");
+  localStorage.setItem(LKEY,JSON.stringify(next));items=next;render();
 }
-async function save(id,data){const next=items.filter(x=>x.id!==id);next.push({id,...data});await commit(next,"Kandidat gespeichert: "+data.name)}
-async function del(id){const c=items.find(x=>x.id===id);await commit(items.filter(x=>x.id!==id),"Kandidat gelöscht: "+(c?c.name:id))}
-
+async function save(id,data){const next=items.filter(x=>x.id!==id);next.push({id,...data});await commit(next)}
+async function del(id){await commit(items.filter(x=>x.id!==id))}
 function setAdmin(on){
   admin=on;
   ["#addBtn","#expBtn","#impBtn","#admBadge"].forEach(q=>$(q).hidden=!on);
   $("#adminBtn").textContent=on?"Abmelden":"Admin";
   render();
 }
-async function tryLogin(pass,newTok){
-  if(await sha256(pass)!==PW_HASH)return {err:"Falsches Passwort."};
-  const f=await ghGet("admin.json",false);
-  if(f){
-    try{token=await unseal(JSON.parse(f.text),pass)}catch{return {err:"Die gespeicherte Einrichtung passt nicht zum Passwort."}}
-  }else{
-    if(!newTok)return {needSetup:true};
-    token=newTok.replace(/[^\x21-\x7e]/g,"");
-    try{await ghPut("admin.json",JSON.stringify(await seal(token,pass)),null,"Admin-Zugang eingerichtet")}
-    catch(e){token=null;return {err:e.status===401?"Dieser GitHub-Schlüssel ist ungültig.":e.status?"GitHub erlaubt diesem Schlüssel das Speichern nicht (Fehler "+e.status+"). Er braucht „Contents: Read and write“.":"Keine Verbindung zu GitHub."}}
-  }
-  pw=pass;try{localStorage.setItem(AKEY,pass)}catch{}
-  setAdmin(true);await loadList(true);return {ok:true};
-}
-$("#adminBtn").onclick=()=>{
-  if(admin){token=null;pw=null;try{localStorage.removeItem(AKEY)}catch{}setAdmin(false);toast("Abgemeldet");return}
-  $("#admErr").hidden=true;$("#admKey").value="";$("#admTok").value="";$("#setupWrap").hidden=true;$("#admOv").hidden=false;setTimeout(()=>$("#admKey").focus(),30);
+$("#adminBtn").onclick=async()=>{
+  if(admin){try{localStorage.removeItem(AKEY)}catch{}setAdmin(false);await loadList();toast("Abgemeldet");return}
+  $("#admErr").hidden=true;$("#admKey").value="";$("#admOv").hidden=false;setTimeout(()=>$("#admKey").focus(),30);
 };
 $("#admCancel").onclick=()=>$("#admOv").hidden=true;
 $("#admOv").addEventListener("click",e=>{if(e.target.id==="admOv")$("#admOv").hidden=true});
 $("#admForm").addEventListener("submit",async e=>{
-  e.preventDefault();const pass=$("#admKey").value.trim();if(!pass)return;
-  const el=$("#admErr");el.hidden=true;$("#admGo").disabled=true;
-  try{
-    const r=await tryLogin(pass,$("#setupWrap").hidden?null:$("#admTok").value);
-    if(r.ok){$("#admOv").hidden=true;toast("Angemeldet. Du kannst jetzt bearbeiten.")}
-    else if(r.needSetup){$("#setupWrap").hidden=false;el.hidden=false;el.textContent="Passwort stimmt. Nur dieses eine Mal noch den GitHub-Schlüssel einfügen, danach reicht für alle Admins das Passwort.";$("#admTok").focus()}
-    else{el.hidden=false;el.textContent=r.err}
-  }catch(err){el.hidden=false;el.textContent="Keine Verbindung zu GitHub. Bitte nochmal versuchen."}
-  finally{$("#admGo").disabled=false}
+  e.preventDefault();const code=$("#admKey").value.trim();if(!code)return;
+  if(await sha256(code)===PW_HASH){try{localStorage.setItem(AKEY,"1")}catch{}$("#admOv").hidden=true;setAdmin(true);await loadList();toast("Angemeldet. Du kannst jetzt alles bearbeiten.")}
+  else{const el=$("#admErr");el.hidden=false;el.textContent="Falscher Code."}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#admOv").hidden)$("#admOv").hidden=true});
-
 $("#expBtn").onclick=()=>{
   const blob=new Blob([JSON.stringify({app:"fib-de03-leitung",exportiert:new Date().toISOString(),kandidaten:items},null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="fib-de03-kandidaten-"+new Date().toISOString().slice(0,10)+".json";
@@ -509,18 +452,11 @@ $("#expBtn").onclick=()=>{
 $("#impBtn").onclick=()=>$("#impFile").click();
 $("#impFile").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
-  let list;
-  try{const d=JSON.parse(await f.text());list=(Array.isArray(d)?d:d.kandidaten).filter(x=>x&&x.id&&x.name)}
-  catch{toast("Die Datei ist keine gültige Kandidatenliste.");return}
-  try{await commit(list,"Liste importiert");toast(list.length+" Kandidaten importiert")}catch(err){toast(errText(err))}
+  try{const d=JSON.parse(await f.text());const list=(Array.isArray(d)?d:d.kandidaten).filter(x=>x&&x.id&&x.name);await commit(list);toast(list.length+" Kandidaten importiert")}
+  catch{toast("Die Datei ist keine gültige Kandidatenliste.")}
 });
-
 render();
-(async()=>{
-  let saved=null;try{saved=localStorage.getItem(AKEY)}catch{}
-  if(saved){try{const r=await tryLogin(saved,null);if(r.ok)return}catch{}}
-  await loadList(false);
-})();
+(async()=>{let ok=false;try{ok=localStorage.getItem(AKEY)==="1"}catch{}if(ok)setAdmin(true);await loadList()})();
 </script>
 
 </body>
