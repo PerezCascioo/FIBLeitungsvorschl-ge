@@ -37,7 +37,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* Kopf */
 header{display:flex;gap:18px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:20px}
-.seal{width:64px;height:64px;flex:none}
+.seal{width:76px;height:76px;flex:none;border-radius:50%;box-shadow:0 0 0 1px var(--line)}
 .head-txt{flex:1;min-width:0}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
 h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,6vw,46px);line-height:1;margin:4px 0 0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
@@ -159,7 +159,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
 <div class="bg" aria-hidden="true"></div>
 <div class="wrap">
   <header>
-    <img class="seal" src="logo.svg" alt="" aria-hidden="true">
+    <img class="seal" src="logo-animiert.gif" alt="" aria-hidden="true">
     <div class="head-txt">
       <div class="eyebrow">Federal Investigation Bureau · Grand DE03 · Intern</div>
       <h1>Leitungsauswahl</h1>
@@ -212,7 +212,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
 </div>
 
 <div class="overlay" id="ov" hidden>
-  <form class="sheet" id="form" autocomplete="off">
+  <form class="sheet" id="form" autocomplete="off" novalidate>
     <div>
       <div class="eyebrow" id="fEyebrow">Neue Akte</div>
       <h2 id="fTitle">Kandidat anlegen</h2>
@@ -225,7 +225,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
         <label>Aktueller Rang<input id="f_rang" maxlength="40" placeholder="z. B. Special Agent"></label>
         <label>Dienstnummer<input id="f_dn" maxlength="20" placeholder="z. B. FIB-07"></label>
         <label>Discord<input id="f_discord" maxlength="40" placeholder="Name im Discord"></label>
-        <label>Im FIB seit (Wochen)<input id="f_wochen" type="number" min="0" max="999" inputmode="numeric"></label>
+        <label>Im FIB seit (Wochen)<input id="f_wochen" type="number" min="0" inputmode="numeric"></label>
         <label>Abteilung
           <select id="f_dept"></select>
         </label>
@@ -251,6 +251,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
 
     <label>Notizen &amp; Begründung<textarea id="f_notes" maxlength="2000" placeholder="Stärken, Schwächen, Vorfälle, Empfehlung von wem …"></textarea></label>
 
+    <div class="err" id="saveErr" role="alert" hidden style="background:rgba(224,96,90,.12);border:1px solid rgba(224,96,90,.5);border-radius:6px;padding:10px 12px"></div>
     <div class="actions">
       <div id="delWrap"><button class="btn danger" type="button" id="delBtn">Löschen</button></div>
       <div class="r">
@@ -368,6 +369,7 @@ window.openForm=function(id){
   $("#f_name").value=c?.name||"";$("#f_rang").value=c?.rang||"";$("#f_dn").value=c?.dn||"";$("#f_discord").value=c?.discord||"";
   $("#f_wochen").value=c?.wochen??"";$("#f_dept").value=c?.abteilung||DEPTS[0][0];$("#f_role").value=c?.rolle||ROLES[0];$("#f_status").value=c?.status||"beobachtung";$("#f_notes").value=c?.notes||"";
   $("#fTitle").textContent=c?c.name:"Kandidat anlegen";$("#fEyebrow").textContent=c?"Akte bearbeiten":"Neue Akte";
+  $("#saveErr").hidden=true;
   if(!admin){$("#fEyebrow").textContent="Akte"}
   $("#form").classList.toggle("ro",!admin);
   $("#form").querySelectorAll("input,select,textarea").forEach(el=>el.disabled=!admin);
@@ -382,16 +384,21 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#ov").hidden)cl
 
 $("#form").addEventListener("submit",async e=>{
   e.preventDefault();
-  const name=$("#f_name").value.trim();if(!name)return;
+  const name=$("#f_name").value.trim();if(!name){$("#saveErr").hidden=false;$("#saveErr").textContent="Bitte einen Namen eintragen.";$("#f_name").focus();return}
   const w=$("#f_wochen").value;
   const data={name,rang:$("#f_rang").value.trim(),dn:$("#f_dn").value.trim(),discord:$("#f_discord").value.trim(),
     wochen:w===""?null:Math.max(0,parseInt(w,10)||0),abteilung:$("#f_dept").value,rolle:$("#f_role").value,status:$("#f_status").value,
     notes:$("#f_notes").value.trim(),werte:{...form},geaendert:new Date().toISOString()};
   const id=editing||("k"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-  $("#saveBtn").disabled=true;
-  try{await save(id,data);closeForm();toast("Gespeichert. Für alle sichtbar in ca. 1 Minute.")}
-  catch(err){toast(errText(err))}
-  finally{$("#saveBtn").disabled=false}
+  $("#saveBtn").disabled=true;$("#saveBtn").textContent="Speichert …";$("#saveErr").hidden=true;
+  try{
+    if(!admin)throw Object.assign(new Error("Nicht als Admin angemeldet"),{status:0,admin:true});
+    await save(id,data);closeForm();toast("Gespeichert. Für alle sichtbar in ca. 1 Minute.");
+  }catch(err){
+    console.error("Speichern fehlgeschlagen",err);
+    const el=$("#saveErr");el.hidden=false;
+    el.textContent=err&&err.admin?"Du bist nicht als Admin angemeldet. Schließe das Fenster, tippe oben auf „Admin“ und melde dich an.":errText(err)+(err&&err.status?"":" ("+(err&&err.message||"unbekannter Fehler")+")");
+  }finally{$("#saveBtn").disabled=false;$("#saveBtn").textContent="Speichern"}
 });
 async function doDel(){
   const id=editing;try{await del(id);closeForm();toast("Gelöscht. Für alle sichtbar in ca. 1 Minute.")}catch(err){toast(errText(err))}
