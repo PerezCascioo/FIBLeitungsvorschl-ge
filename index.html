@@ -170,7 +170,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
     <div class="head-txt">
       <div class="eyebrow">Federal Investigation Bureau · Grand DE03 · Intern</div>
       <h1>Leitungsauswahl</h1>
-      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v10</span></p>
+      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v11</span></p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <span class="adminbadge" id="admBadge" hidden>Admin</span>
@@ -425,7 +425,7 @@ try{const c=parseInt(localStorage.getItem(CKEY),10);if(c>=0&&c<3)cur=c}catch{}
 
 async function sha256(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function showNotice(t){const n=$("#notice");n.hidden=!t;n.textContent=t||""}
-function errText(){return "Speichern auf diesem Gerät nicht möglich. Ist der private Modus an?"}
+function errText(){return "Dein Browser speichert nicht. Ist ein privates Fenster offen? Öffne die Seite in einem normalen Fenster."}
 function localList(n){try{const v=localStorage.getItem(lkey(n));return v?JSON.parse(v):null}catch{return null}}
 async function fetchPublished(n){
   if(published[n])return published[n];
@@ -473,14 +473,24 @@ function askClear(){
 async function loadList(){
   await Promise.all([0,1,2].map(fetchPublished));
   if(!admin&&cur===0&&!published[0])showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.");else showNotice("");
-  items=listFor(cur);render();renderTabs();
+  items=listFor(cur);render();renderTabs();adminInfo();
 }
 async function commit(next){
   if(!admin)throw new Error("Nicht als Admin angemeldet");
-  localStorage.setItem(lkey(cur),JSON.stringify(next));items=next;render();renderTabs();
+  const txt=JSON.stringify(next);
+  localStorage.setItem(lkey(cur),txt);
+  if(localStorage.getItem(lkey(cur))!==txt)throw new Error("Browser speichert nicht");
+  try{localStorage.setItem("fib-de03-zuletzt",new Date().toISOString())}catch{}
+  items=next;render();renderTabs();adminInfo();
 }
 async function save(id,data){const next=items.filter(x=>x.id!==id);next.push({id,...data});await commit(next)}
 async function del(id){await commit(items.filter(x=>x.id!==id))}
+function adminInfo(){
+  if(!admin)return;
+  let t=null;try{t=localStorage.getItem("fib-de03-zuletzt")}catch{}
+  const n=$("#notice");n.hidden=false;n.style.borderLeftColor="var(--gold)";
+  n.textContent="Admin-Modus: Änderungen werden nur in diesem Browser gespeichert"+(t?" (zuletzt "+new Date(t).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+")":"")+". Damit alle sie sehen: Exportieren und an Claude schicken.";
+}
 function setAdmin(on){
   admin=on;
   ["#addBtn","#expBtn","#impBtn","#admBadge"].forEach(q=>$(q).hidden=!on);
@@ -494,7 +504,8 @@ $("#admCancel").onclick=()=>$("#admOv").hidden=true;
 $("#admOv").addEventListener("click",e=>{if(e.target.id==="admOv")$("#admOv").hidden=true});
 $("#admForm").addEventListener("submit",async e=>{
   e.preventDefault();const code=$("#admKey").value.trim();if(!code)return;
-  if(await sha256(code)===PW_HASH){try{localStorage.setItem(AKEY,"1")}catch{}$("#admOv").hidden=true;setAdmin(true);await loadList();toast("Angemeldet. Du kannst jetzt alles bearbeiten.")}
+  if(await sha256(code)===PW_HASH){let okS=false;try{localStorage.setItem(AKEY,"1");okS=localStorage.getItem(AKEY)==="1"}catch{}
+    if(!okS){const el=$("#admErr");el.hidden=false;el.textContent="Dein Browser erlaubt hier kein Speichern (privates Fenster oder blockierte Website-Daten). Öffne die Seite in einem normalen Fenster.";return}$("#admOv").hidden=true;setAdmin(true);await loadList();toast("Angemeldet. Du kannst jetzt alles bearbeiten.")}
   else{const el=$("#admErr");el.hidden=false;el.textContent="Falscher Code."}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#admOv").hidden)$("#admOv").hidden=true});
