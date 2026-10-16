@@ -149,6 +149,13 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
 .help{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
 .help ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
 .err{color:var(--bad);font-size:13px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tab{font:600 14px var(--body);padding:9px 16px;border-radius:6px 6px 0 0;border:1px solid var(--line);border-bottom-color:transparent;background:transparent;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--gold);border-color:var(--gold)}
+.tab small{font-family:var(--mono);font-size:11px;opacity:.75;font-variant-numeric:tabular-nums}
+.tabtools{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn.sm{padding:7px 12px;font-size:13px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:6px;font-weight:600;font-size:14px;z-index:30}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
 </style>
@@ -163,7 +170,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
     <div class="head-txt">
       <div class="eyebrow">Federal Investigation Bureau · Grand DE03 · Intern</div>
       <h1>Leitungsauswahl</h1>
-      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v9</span></p>
+      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v10</span></p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <span class="adminbadge" id="admBadge" hidden>Admin</span>
@@ -175,6 +182,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
     </div>
   </header>
 
+  <div class="tabs" role="tablist" aria-label="Listen" id="tabs"></div>
   <div class="stats" id="stats"></div>
 
   <section style="display:flex;flex-direction:column;gap:10px">
@@ -329,7 +337,7 @@ function render(){
 
   const L=$("#list");
   if(!items.length){
-    L.innerHTML=`<div class="empty"><h2>Noch keine Kandidaten</h2><p>${admin?"Lege den ersten Kandidaten an und bewerte ihn in sechs Kriterien. Die Liste sortiert sich automatisch nach Gesamtwertung.":"Die Leitung hat noch keine Kandidaten veröffentlicht."}</p>${admin?`<button class="btn primary" type="button" onclick="openForm()">+ Ersten Kandidaten anlegen</button>`:""}</div>`;
+    L.innerHTML=`<div class="empty"><h2>Noch keine Kandidaten</h2><p>${admin?"Lege den ersten Kandidaten an und bewerte ihn in sechs Kriterien. Die Liste sortiert sich automatisch nach Gesamtwertung.":"In dieser Liste sind noch keine Kandidaten."}</p>${admin?`<button class="btn primary" type="button" onclick="openForm()">+ Ersten Kandidaten anlegen</button>`:""}</div>`;
     return;
   }
   if(!vis.length){L.innerHTML=`<div class="empty"><p>Kein Kandidat passt zu diesem Filter.</p></div>`;return}
@@ -405,24 +413,71 @@ async function doDel(){
 }
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,3600)}
 
-// Speicher: veröffentlichte Liste aus kandidaten.json; Admin-Änderungen werden auf diesem Gerät gespeichert.
+// Speicher: drei Listen. Veröffentlicht: kandidaten.json (Liste 1), kandidaten-2.json, kandidaten-3.json.
+// Admin-Änderungen werden auf diesem Gerät gespeichert.
 const PW_HASH="5d778b65373f9e6c63a50de7bb2efad14f5f8b22d4103431927890d864cafa87";
-const AKEY="fib-de03-admin",LKEY="fib-de03-liste";
-let admin=false;
+const AKEY="fib-de03-admin",NKEY="fib-de03-namen",CKEY="fib-de03-aktiv";
+const FILES=["kandidaten.json","kandidaten-2.json","kandidaten-3.json"];
+const lkey=n=>n===0?"fib-de03-liste":"fib-de03-liste-"+(n+1);
+let admin=false,cur=0,names=["Liste 1","Liste 2","Liste 3"],counts=[null,null,null],published=[null,null,null];
+try{const v=JSON.parse(localStorage.getItem(NKEY)||"null");if(Array.isArray(v)&&v.length===3)names=v.map((x,i)=>x||names[i])}catch{}
+try{const c=parseInt(localStorage.getItem(CKEY),10);if(c>=0&&c<3)cur=c}catch{}
+
 async function sha256(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function showNotice(t){const n=$("#notice");n.hidden=!t;n.textContent=t||""}
 function errText(){return "Speichern auf diesem Gerät nicht möglich. Ist der private Modus an?"}
-function localList(){try{const v=localStorage.getItem(LKEY);return v?JSON.parse(v):null}catch{return null}}
+function localList(n){try{const v=localStorage.getItem(lkey(n));return v?JSON.parse(v):null}catch{return null}}
+async function fetchPublished(n){
+  if(published[n])return published[n];
+  try{const res=await fetch(FILES[n]+"?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw 0;const d=await res.json();published[n]=Array.isArray(d)?d:(d.kandidaten||[])}
+  catch{published[n]=n===0?null:[]}
+  return published[n];
+}
+function listFor(n){const loc=admin?localList(n):null;return loc||published[n]||[]}
+
+function renderTabs(){
+  for(let i=0;i<3;i++)counts[i]=listFor(i).length;
+  $("#tabs").innerHTML=names.map((nm,i)=>`<button type="button" class="tab" role="tab" aria-selected="${i===cur}" data-i="${i}">${esc(nm)} <small>${counts[i]}</small></button>`).join("")+
+   (admin?`<div class="tabtools">
+     <button type="button" class="btn ghost sm" id="renBtn">Umbenennen</button>
+     ${cur!==0?`<button type="button" class="btn ghost sm" id="cpyBtn">Aus ${esc(names[0])} kopieren</button>`:""}
+     ${items.length?`<button type="button" class="btn danger sm" id="clrBtn">Liste leeren</button>`:""}
+   </div>`:"");
+  const ren=$("#renBtn");if(ren)ren.onclick=startRename;
+  const cpy=$("#cpyBtn");if(cpy)cpy.onclick=copyFirst;
+  const clr=$("#clrBtn");if(clr)clr.onclick=askClear;
+}
+$("#tabs").addEventListener("click",e=>{const t=e.target.closest(".tab");if(!t)return;switchTo(+t.dataset.i)});
+async function switchTo(n){
+  cur=n;try{localStorage.setItem(CKEY,String(n))}catch{}
+  await loadList();
+}
+function startRename(){
+  const tools=$(".tabtools");if(!tools)return;
+  tools.innerHTML=`<input id="renIn" maxlength="30" value="${esc(names[cur])}" style="width:180px;padding:7px 10px" aria-label="Neuer Name"><button type="button" class="btn primary sm" id="renOk">OK</button><button type="button" class="btn ghost sm" id="renNo">Abbrechen</button>`;
+  const inp=$("#renIn");inp.focus();inp.select();
+  const ok=()=>{const v=inp.value.trim();if(v){names[cur]=v;try{localStorage.setItem(NKEY,JSON.stringify(names))}catch{}}renderTabs()};
+  $("#renOk").onclick=ok;$("#renNo").onclick=renderTabs;
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();ok()}if(e.key==="Escape")renderTabs()});
+}
+async function copyFirst(){
+  const src=listFor(0).map(c=>({...c,werte:{...(c.werte||{})},id:"k"+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}));
+  await commit(src);toast(src.length+" Kandidaten aus "+names[0]+" kopiert");
+}
+function askClear(){
+  const tools=$(".tabtools");if(!tools)return;
+  tools.innerHTML=`<span style="font-size:14px">${esc(names[cur])} wirklich leeren?</span><button type="button" class="btn danger sm" id="clrYes">Ja, leeren</button><button type="button" class="btn ghost sm" id="clrNo">Nein</button>`;
+  $("#clrYes").onclick=async()=>{await commit([]);toast("Liste geleert")};$("#clrNo").onclick=renderTabs;
+}
+
 async function loadList(){
-  const loc=admin?localList():null;
-  if(loc){items=loc;render();return}
-  try{const res=await fetch("kandidaten.json?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw 0;const d=await res.json();items=Array.isArray(d)?d:(d.kandidaten||[]);showNotice("")}
-  catch{if(!items.length)showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.")}
-  render();
+  await Promise.all([0,1,2].map(fetchPublished));
+  if(!admin&&cur===0&&!published[0])showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.");else showNotice("");
+  items=listFor(cur);render();renderTabs();
 }
 async function commit(next){
   if(!admin)throw new Error("Nicht als Admin angemeldet");
-  localStorage.setItem(LKEY,JSON.stringify(next));items=next;render();
+  localStorage.setItem(lkey(cur),JSON.stringify(next));items=next;render();renderTabs();
 }
 async function save(id,data){const next=items.filter(x=>x.id!==id);next.push({id,...data});await commit(next)}
 async function del(id){await commit(items.filter(x=>x.id!==id))}
@@ -430,7 +485,6 @@ function setAdmin(on){
   admin=on;
   ["#addBtn","#expBtn","#impBtn","#admBadge"].forEach(q=>$(q).hidden=!on);
   $("#adminBtn").textContent=on?"Abmelden":"Admin";
-  render();
 }
 $("#adminBtn").onclick=async()=>{
   if(admin){try{localStorage.removeItem(AKEY)}catch{}setAdmin(false);await loadList();toast("Abgemeldet");return}
@@ -445,14 +499,14 @@ $("#admForm").addEventListener("submit",async e=>{
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#admOv").hidden)$("#admOv").hidden=true});
 $("#expBtn").onclick=()=>{
-  const blob=new Blob([JSON.stringify({app:"fib-de03-leitung",exportiert:new Date().toISOString(),kandidaten:items},null,2)],{type:"application/json"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="fib-de03-kandidaten-"+new Date().toISOString().slice(0,10)+".json";
+  const blob=new Blob([JSON.stringify({app:"fib-de03-leitung",liste:names[cur],exportiert:new Date().toISOString(),kandidaten:items},null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="fib-de03-"+names[cur].toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Exportiert");
 };
 $("#impBtn").onclick=()=>$("#impFile").click();
 $("#impFile").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
-  try{const d=JSON.parse(await f.text());const list=(Array.isArray(d)?d:d.kandidaten).filter(x=>x&&x.id&&x.name);await commit(list);toast(list.length+" Kandidaten importiert")}
+  try{const d=JSON.parse(await f.text());const list=(Array.isArray(d)?d:d.kandidaten).filter(x=>x&&x.id&&x.name);await commit(list);toast(list.length+" Kandidaten in "+names[cur]+" importiert")}
   catch{toast("Die Datei ist keine gültige Kandidatenliste.")}
 });
 render();
