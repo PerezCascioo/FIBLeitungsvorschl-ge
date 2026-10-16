@@ -163,7 +163,7 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
     <div class="head-txt">
       <div class="eyebrow">Federal Investigation Bureau · Grand DE03 · Intern</div>
       <h1>Leitungsauswahl</h1>
-      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen.</p>
+      <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen. <span style="font-family:var(--mono);font-size:11px;opacity:.6">v6</span></p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <span class="adminbadge" id="admBadge" hidden>Admin</span>
@@ -416,13 +416,16 @@ function b64(str){const by=new TextEncoder().encode(str);let bin="";for(let i=0;
 function unb64(x){const bin=atob(x.replace(/\s/g,""));return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)))}
 async function gh(path,opts={}){
   const res=await fetch(API+path,{...opts,cache:"no-store",headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,...(opts.body?{"Content-Type":"application/json"}:{})}});
-  if(!res.ok){const e=new Error("GitHub "+res.status);e.status=res.status;throw e}
+  if(!res.ok){let msg="";try{msg=(await res.json()).message||""}catch{}const e=new Error("GitHub "+res.status+(msg?": "+msg:""));e.status=res.status;e.ghmsg=msg;e.method=(opts.method||"GET");throw e}
   return res.json();
 }
 function errText(e){
   if(!e||!e.status)return "Keine Verbindung. Bitte erneut versuchen.";
   if(e.status===401){logout();return "Admin-Schlüssel ungültig oder abgelaufen. Bitte neu anmelden."}
-  if(e.status===403||e.status===404)return "Der Schlüssel darf die Liste nicht ändern. Er braucht das Recht „Contents: Read and write“.";
+  if(e.status===403||e.status===404){
+    const pre=token?(token.startsWith("github_pat_")?"github_pat_ (der alte Schlüssel)":token.slice(0,4)+"…"):"keiner";
+    return "GitHub lehnt das Speichern ab (Fehler "+e.status+(e.ghmsg?": "+e.ghmsg:"")+"). Aktiver Schlüssel: "+pre+". Tippe oben auf „Abmelden“ und melde dich mit dem neuen ghp_-Schlüssel an.";
+  }
   if(e.status===409||e.status===422){loadAdmin().catch(()=>{});return "Die Liste wurde gerade woanders geändert und neu geladen. Bitte nochmal speichern."}
   return "Speichern fehlgeschlagen (Fehler "+e.status+"). Bitte erneut versuchen.";
 }
