@@ -1,0 +1,300 @@
+{
+  "app": "fib-de03-leitung",
+  "aktualisiert": "2026-10-16T05:55:00+02:00",
+  "kandidaten": [
+    {
+      "id": "beispiel1",
+      "abteilung": "SAF",
+      "discord": "",
+      "dn": "FIB-016",
+      "geaendert": "2026-10-16T03:03:03.206Z",
+      "name": "Abo Exe",
+      "notes": "Ist derzeit Berater aber nur solange Nick Valentine weg ist",
+      "rang": "Head of Department",
+      "rolle": "Berater",
+      "status": "empfohlen",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 5,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 5
+      },
+      "wochen": 14
+    },
+    {
+      "id": "beispiel2",
+      "abteilung": "GTF",
+      "discord": "",
+      "dn": "FIB-004",
+      "geaendert": "2026-10-16T03:10:37.115Z",
+      "name": "Leon Tutuh",
+      "notes": "macht sehr gute arbeit",
+      "rang": "Berater",
+      "rolle": "Berater",
+      "status": "empfohlen",
+      "werte": {
+        "aktivitaet": 5,
+        "fuehrung": 5,
+        "komm": 5,
+        "regeln": 5,
+        "rp": 5,
+        "team": 5
+      },
+      "wochen": 6
+    },
+    {
+      "id": "kmvadwcmtv7gd",
+      "abteilung": "SAF",
+      "discord": "",
+      "dn": "A-112",
+      "geaendert": "2026-10-16T03:04:28.661Z",
+      "name": "Kerem Exe",
+      "notes": "Auf Probe Vize wenns gut läuft leitung",
+      "rang": "Senior SAF Agent",
+      "rolle": "Vize-Leitung",
+      "status": "empfohlen",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 3,
+        "komm": 3,
+        "regeln": 3,
+        "rp": 4,
+        "team": 3
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvadxsuyusgb",
+      "abteilung": "FIBCO",
+      "discord": "",
+      "dn": "A-010",
+      "geaendert": "2026-10-16T03:05:36.346Z",
+      "name": "Capo Dalida",
+      "notes": "Ist schon leitung",
+      "rang": "Head of Department",
+      "rolle": "Leitung",
+      "status": "empfohlen",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 5,
+        "komm": 5,
+        "regeln": 5,
+        "rp": 5,
+        "team": 5
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvadz38hdtoa",
+      "abteilung": "FIBCO",
+      "discord": "",
+      "dn": "A-017",
+      "geaendert": "2026-10-16T03:06:36.449Z",
+      "name": "Edonik Monroe",
+      "notes": "st schon vize und macht sein zeug gut",
+      "rang": "Dept. Head of Department",
+      "rolle": "Vize-Leitung",
+      "status": "empfohlen",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 4,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 4
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvae0fn6qo5j",
+      "abteilung": "FIBCO",
+      "discord": "",
+      "dn": "A-106",
+      "geaendert": "2026-10-16T03:08:01.299Z",
+      "name": "Shiro Mogel",
+      "notes": "wäre ein guter vize auf probe",
+      "rang": "FIBCO Agent",
+      "rolle": "Vize-Leitung",
+      "status": "empfohlen",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 3,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 4
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvae2wq5l8gk",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "A-019",
+      "geaendert": "2026-10-16T03:09:34.637Z",
+      "name": "Nick Gravens",
+      "notes": "ist schon vize hat aber mehr potenzial",
+      "rang": "Dept. Head of Department",
+      "rolle": "Vize-Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 2,
+        "komm": 2,
+        "regeln": 4,
+        "rp": 4,
+        "team": 3
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvae5eprfqua",
+      "abteilung": "GTF",
+      "discord": "",
+      "dn": "A-041",
+      "geaendert": "2026-10-16T03:11:31.263Z",
+      "name": "Haralt Nemesis",
+      "notes": "wäre Haralt aktiver auch eine gute wahl",
+      "rang": "GTF Agent",
+      "rolle": "Vize-Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 1,
+        "fuehrung": 3,
+        "komm": 3,
+        "regeln": 3,
+        "rp": 3,
+        "team": 3
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvae6y6s77im",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "A-123",
+      "geaendert": "2026-10-16T03:16:44.798Z",
+      "name": "Perez Cascio",
+      "notes": "auf probe testen",
+      "rang": "SAF Agent",
+      "rolle": "Vize-Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 3,
+        "fuehrung": 2,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 5
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvae7wl1pqvu",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "A-300",
+      "geaendert": "2026-10-16T03:13:27.733Z",
+      "name": "Noah Paragon",
+      "notes": "Auf probe testen",
+      "rang": "HR Agent",
+      "rolle": "Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 4,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 3
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvae98sn675x",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "A-088",
+      "geaendert": "2026-10-16T03:14:30.215Z",
+      "name": "Tomas Gill",
+      "notes": "Mehr aktivität zeigen",
+      "rang": "Senior HR Agent",
+      "rolle": "Vize-Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 2,
+        "fuehrung": 3,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 4
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvaea7evsu4a",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "A-125",
+      "geaendert": "2026-10-16T03:15:15.079Z",
+      "name": "Niko Vladimir",
+      "notes": "Auf probe eine gute wahl",
+      "rang": "HR Agent",
+      "rolle": "Vize-Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 4,
+        "fuehrung": 2,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 4
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvaeb1zt7n0m",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "A-123",
+      "geaendert": "2026-10-16T03:16:34.670Z",
+      "name": "Perez Cascio",
+      "notes": "Auf probe testen",
+      "rang": "SAG Agent",
+      "rolle": "Leitung",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 3,
+        "fuehrung": 2,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 4
+      },
+      "wochen": null
+    },
+    {
+      "id": "kmvaed6nah3km",
+      "abteilung": "HR",
+      "discord": "",
+      "dn": "",
+      "geaendert": "2026-10-16T03:17:34.054Z",
+      "name": "Ralf Engel",
+      "notes": "Gute arbeit aber braucht mehr aktivität",
+      "rang": "Berater",
+      "rolle": "Berater",
+      "status": "beobachtung",
+      "werte": {
+        "aktivitaet": 2,
+        "fuehrung": 5,
+        "komm": 4,
+        "regeln": 4,
+        "rp": 4,
+        "team": 4
+      },
+      "wochen": null
+    }
+  ]
+}

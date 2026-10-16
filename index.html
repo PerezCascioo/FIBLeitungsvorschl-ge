@@ -138,6 +138,13 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
 .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between}
 .actions .r{display:flex;gap:10px;margin-left:auto}
 .confirm{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.adminbadge{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--bg);background:var(--gold);padding:3px 8px;border-radius:4px}
+.ro .dot{cursor:default}
+.adm-sheet{width:min(460px,100%);margin:auto;height:auto;border:1px solid var(--line);border-radius:10px}
+.adm-ov{justify-content:center;align-items:center;padding:16px}
+.help{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.help ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.err{color:var(--bad);font-size:13px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:6px;font-weight:600;font-size:14px;z-index:30}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
 </style>
@@ -158,10 +165,12 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
       <p class="sub">Kandidaten für die Leitung bewerten, vergleichen und nachverfolgen.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn ghost" id="expBtn" type="button" title="Liste als Datei sichern">Exportieren</button>
-      <button class="btn ghost" id="impBtn" type="button" title="Gesicherte Liste laden">Importieren</button>
+      <span class="adminbadge" id="admBadge" hidden>Admin</span>
+      <button class="btn ghost" id="expBtn" type="button" title="Liste als Datei sichern" hidden>Exportieren</button>
+      <button class="btn ghost" id="impBtn" type="button" title="Gesicherte Liste laden" hidden>Importieren</button>
       <input type="file" id="impFile" accept="application/json,.json" hidden>
-      <button class="btn primary" id="addBtn" type="button">+ Kandidat anlegen</button>
+      <button class="btn ghost" id="adminBtn" type="button">Admin</button>
+      <button class="btn primary" id="addBtn" type="button" hidden>+ Kandidat anlegen</button>
     </div>
   </header>
 
@@ -250,6 +259,23 @@ legend{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.
     </div>
   </form>
 </div>
+<div class="overlay adm-ov" id="admOv" hidden>
+  <form class="sheet adm-sheet" id="admForm" autocomplete="off">
+    <div>
+      <div class="eyebrow">Zugang</div>
+      <h2>Admin-Anmeldung</h2>
+    </div>
+    <label>Admin-Schlüssel<input id="admKey" type="password" required placeholder="github_pat_…" spellcheck="false"></label>
+    <div class="err" id="admErr" hidden></div>
+    <div class="help">
+      <span>Der Schlüssel ist ein GitHub-Zugangstoken mit Schreibrecht auf dieses Repository. Er wird nur in diesem Browser gespeichert.</span>
+    </div>
+    <div class="actions"><div class="r">
+      <button class="btn ghost" type="button" id="admCancel">Abbrechen</button>
+      <button class="btn primary" type="submit" id="admGo">Anmelden</button>
+    </div></div>
+  </form>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -301,7 +327,7 @@ function render(){
 
   const L=$("#list");
   if(!items.length){
-    L.innerHTML=`<div class="empty"><h2>Noch keine Kandidaten</h2><p>Lege den ersten Kandidaten an und bewerte ihn in sechs Kriterien. Die Liste sortiert sich automatisch nach Gesamtwertung.</p><button class="btn primary" type="button" onclick="openForm()">+ Ersten Kandidaten anlegen</button></div>`;
+    L.innerHTML=`<div class="empty"><h2>Noch keine Kandidaten</h2><p>${admin?"Lege den ersten Kandidaten an und bewerte ihn in sechs Kriterien. Die Liste sortiert sich automatisch nach Gesamtwertung.":"Die Leitung hat noch keine Kandidaten veröffentlicht."}</p>${admin?`<button class="btn primary" type="button" onclick="openForm()">+ Ersten Kandidaten anlegen</button>`:""}</div>`;
     return;
   }
   if(!vis.length){L.innerHTML=`<div class="empty"><p>Kein Kandidat passt zu diesem Filter.</p></div>`;return}
@@ -326,7 +352,7 @@ $("#board").addEventListener("click",e=>{const b=e.target.closest(".slot");if(!b
 // Formular
 function renderCrit(){
   $("#critBox").innerHTML=CRITERIA.map(x=>`<div class="crit"><span class="cn">${x.n}</span><span class="cw">${x.w} %</span><span class="cd">${x.d}</span>
-    <div class="dots" role="radiogroup" aria-label="${x.n}">${[1,2,3,4,5].map(i=>`<button type="button" class="dot ${form[x.k]===i?"on":""}" role="radio" aria-checked="${form[x.k]===i}" data-k="${x.k}" data-v="${i}">${i}</button>`).join("")}</div></div>`).join("");
+    <div class="dots" role="radiogroup" aria-label="${x.n}">${[1,2,3,4,5].map(i=>`<button type="button" ${admin?"":"disabled"} class="dot ${form[x.k]===i?"on":""}" role="radio" aria-checked="${form[x.k]===i}" data-k="${x.k}" data-v="${i}">${i}</button>`).join("")}</div></div>`).join("");
   const s=score({werte:form}),[tc,tl]=tier(s);
   $("#liveScore").textContent=s;$("#liveScore").className=tc;$("#liveTier").textContent=tl;$("#liveTier").className=tc;
 }
@@ -341,7 +367,11 @@ window.openForm=function(id){
   $("#f_name").value=c?.name||"";$("#f_rang").value=c?.rang||"";$("#f_dn").value=c?.dn||"";$("#f_discord").value=c?.discord||"";
   $("#f_wochen").value=c?.wochen??"";$("#f_dept").value=c?.abteilung||DEPTS[0][0];$("#f_role").value=c?.rolle||ROLES[0];$("#f_status").value=c?.status||"beobachtung";$("#f_notes").value=c?.notes||"";
   $("#fTitle").textContent=c?c.name:"Kandidat anlegen";$("#fEyebrow").textContent=c?"Akte bearbeiten":"Neue Akte";
-  resetDel();renderCrit();$("#ov").hidden=false;setTimeout(()=>$("#f_name").focus(),30);
+  if(!admin){$("#fEyebrow").textContent="Akte"}
+  $("#form").classList.toggle("ro",!admin);
+  $("#form").querySelectorAll("input,select,textarea").forEach(el=>el.disabled=!admin);
+  $("#saveBtn").hidden=!admin;$("#cancelBtn").textContent=admin?"Abbrechen":"Schließen";
+  resetDel();if(!admin)$("#delWrap").hidden=true;renderCrit();$("#ov").hidden=false;setTimeout(()=>(admin?$("#f_name"):$("#cancelBtn")).focus(),30);
 }
 function closeForm(){$("#ov").hidden=true;editing=null}
 $("#addBtn").onclick=()=>openForm();
@@ -358,25 +388,97 @@ $("#form").addEventListener("submit",async e=>{
     notes:$("#f_notes").value.trim(),werte:{...form},geaendert:new Date().toISOString()};
   const id=editing||("k"+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
   $("#saveBtn").disabled=true;
-  try{await save(id,data);closeForm();toast("Gespeichert")}
-  catch(err){toast(err&&err.code==="invalid_argument"?"Du hast keine Schreibrechte für diese Liste.":"Speichern fehlgeschlagen. Bitte erneut versuchen.")}
+  try{await save(id,data);closeForm();toast("Gespeichert. Für alle sichtbar in ca. 1 Minute.")}
+  catch(err){toast(errText(err))}
   finally{$("#saveBtn").disabled=false}
 });
 async function doDel(){
-  const id=editing;try{await del(id);closeForm();toast("Gelöscht")}catch{toast("Löschen fehlgeschlagen.")}
+  const id=editing;try{await del(id);closeForm();toast("Gelöscht. Für alle sichtbar in ca. 1 Minute.")}catch(err){toast(errText(err))}
 }
-function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2400)}
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,3600)}
 
-// Speicher: lokal im Browser
-const LKEY="fib-de03-kandidaten";
-const SEED=[
- {id:"beispiel1",beispiel:true,name:"Beispiel: Lena Hartmann",rang:"Senior Special Agent",dn:"FIB-04",discord:"",wochen:14,abteilung:"SAF",rolle:"Leitung",status:"empfohlen",notes:"Beispieleintrag – zum Löschen öffnen und unten auf Löschen tippen.",werte:{fuehrung:5,aktivitaet:4,regeln:4,team:5,komm:4,rp:4}},
- {id:"beispiel2",beispiel:true,name:"Beispiel: Jonas Keller",rang:"Special Agent",dn:"FIB-11",discord:"",wochen:6,abteilung:"GTF",rolle:"Vize-Leitung",status:"beobachtung",notes:"Beispieleintrag – zum Löschen öffnen und unten auf Löschen tippen.",werte:{fuehrung:3,aktivitaet:5,regeln:3,team:4,komm:3,rp:3}}
-];
-function loadLocal(){try{const raw=localStorage.getItem(LKEY);items=raw===null?SEED.map(x=>({...x})):JSON.parse(raw)}catch{items=SEED.map(x=>({...x}))}}
-function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify(items))}catch{toast("Speichern im Browser nicht möglich.")}}
-async function save(id,data){const i=items.findIndex(x=>x.id===id);const rec={id,...data};if(i>=0)items[i]=rec;else items.push(rec);saveLocal();render()}
-async function del(id){items=items.filter(x=>x.id!==id);saveLocal();render()}
+// Speicher: kandidaten.json im GitHub-Repository. Lesen für alle, Schreiben nur mit Admin-Schlüssel.
+const GH=(()=>{const m=location.hostname.match(/^([^.]+)\.github\.io$/i);const seg=location.pathname.split("/").filter(Boolean)[0];
+  return m&&seg&&!/\.html?$/i.test(seg)?{owner:m[1],repo:seg}:{owner:"PerezCascioo",repo:"FIBLeitungsvorschl-ge"}})();
+const API="https://api.github.com/repos/"+GH.owner+"/"+GH.repo;
+const TKEY="fib-de03-admin-key";
+let token=null,sha=null,admin=false;
+
+function b64(str){const by=new TextEncoder().encode(str);let bin="";for(let i=0;i<by.length;i+=0x8000)bin+=String.fromCharCode.apply(null,by.subarray(i,i+0x8000));return btoa(bin)}
+function unb64(x){const bin=atob(x.replace(/\s/g,""));return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)))}
+async function gh(path,opts={}){
+  const res=await fetch(API+path,{...opts,cache:"no-store",headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,...(opts.body?{"Content-Type":"application/json"}:{})}});
+  if(!res.ok){const e=new Error("GitHub "+res.status);e.status=res.status;throw e}
+  return res.json();
+}
+function errText(e){
+  if(!e||!e.status)return "Keine Verbindung. Bitte erneut versuchen.";
+  if(e.status===401){logout();return "Admin-Schlüssel ungültig oder abgelaufen. Bitte neu anmelden."}
+  if(e.status===403||e.status===404)return "Der Schlüssel darf die Liste nicht ändern. Er braucht das Recht „Contents: Read and write“.";
+  if(e.status===409||e.status===422){loadAdmin().catch(()=>{});return "Die Liste wurde gerade woanders geändert und neu geladen. Bitte nochmal speichern."}
+  return "Speichern fehlgeschlagen (Fehler "+e.status+"). Bitte erneut versuchen.";
+}
+function showNotice(t){const n=$("#notice");n.hidden=!t;n.textContent=t||""}
+
+async function loadPublic(){
+  try{const res=await fetch("kandidaten.json?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw 0;const d=await res.json();items=Array.isArray(d)?d:(d.kandidaten||[]);showNotice("")}
+  catch{if(!items.length)showNotice("Die Liste konnte gerade nicht geladen werden. Bitte Seite neu laden.")}
+  render();
+}
+async function loadAdmin(){
+  try{const f=await gh("/contents/kandidaten.json?ref=main");sha=f.sha;const d=JSON.parse(unb64(f.content));items=Array.isArray(d)?d:(d.kandidaten||[])}
+  catch(e){if(e.status===404){sha=null;items=[]}else throw e}
+  render();
+}
+async function commit(next,msg){
+  if(!admin)throw new Error("readonly");
+  const body={message:msg,branch:"main",content:b64(JSON.stringify({app:"fib-de03-leitung",aktualisiert:new Date().toISOString(),kandidaten:next},null,2)+"\n")};
+  if(sha)body.sha=sha;
+  const res=await gh("/contents/kandidaten.json",{method:"PUT",body:JSON.stringify(body)});
+  sha=res.content.sha;items=next;render();
+}
+async function save(id,data){
+  const rec={id,...data};const next=items.filter(x=>x.id!==id);next.push(rec);
+  await commit(next,"Kandidat gespeichert: "+data.name);
+}
+async function del(id){
+  const c=items.find(x=>x.id===id);await commit(items.filter(x=>x.id!==id),"Kandidat gelöscht: "+(c?c.name:id));
+}
+
+function setAdmin(on){
+  admin=on;
+  ["#addBtn","#expBtn","#impBtn","#admBadge"].forEach(q=>$(q).hidden=!on);
+  $("#adminBtn").textContent=on?"Abmelden":"Admin";
+  render();
+}
+function logout(){token=null;sha=null;try{localStorage.removeItem(TKEY)}catch{}setAdmin(false);loadPublic()}
+async function login(key,silent){
+  token=key;
+  try{
+    const repo=await gh("");
+    if(repo.permissions&&repo.permissions.push===false){const e=new Error("x");e.status=403;throw e}
+    await loadAdmin();
+    try{localStorage.setItem(TKEY,key)}catch{}
+    setAdmin(true);return true;
+  }catch(e){
+    token=null;if(silent){try{localStorage.removeItem(TKEY)}catch{}}
+    throw e;
+  }
+}
+$("#adminBtn").onclick=()=>{
+  if(admin){logout();toast("Abgemeldet");return}
+  $("#admErr").hidden=true;$("#admKey").value="";$("#admOv").hidden=false;setTimeout(()=>$("#admKey").focus(),30);
+};
+$("#admCancel").onclick=()=>$("#admOv").hidden=true;
+$("#admOv").addEventListener("click",e=>{if(e.target.id==="admOv")$("#admOv").hidden=true});
+$("#admForm").addEventListener("submit",async e=>{
+  e.preventDefault();const key=$("#admKey").value.trim();if(!key)return;
+  $("#admGo").disabled=true;
+  try{await login(key,false);$("#admOv").hidden=true;toast("Angemeldet. Du kannst jetzt bearbeiten.")}
+  catch(err){const el=$("#admErr");el.hidden=false;el.textContent=err.status===401?"Dieser Schlüssel ist ungültig.":err.status?"Dieser Schlüssel hat keinen Schreibzugriff auf die Liste.":"Keine Verbindung zu GitHub."}
+  finally{$("#admGo").disabled=false}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("#admOv").hidden)$("#admOv").hidden=true});
 
 $("#expBtn").onclick=()=>{
   const blob=new Blob([JSON.stringify({app:"fib-de03-leitung",exportiert:new Date().toISOString(),kandidaten:items},null,2)],{type:"application/json"});
@@ -386,12 +488,19 @@ $("#expBtn").onclick=()=>{
 $("#impBtn").onclick=()=>$("#impFile").click();
 $("#impFile").addEventListener("change",async e=>{
   const f=e.target.files[0];e.target.value="";if(!f)return;
-  try{const d=JSON.parse(await f.text());const list=Array.isArray(d)?d:d.kandidaten;if(!Array.isArray(list))throw 0;
-    items=list.filter(x=>x&&x.id&&x.name);saveLocal();render();toast(items.length+" Kandidaten geladen")}
-  catch{toast("Die Datei ist keine gültige Kandidatenliste.")}
+  let list;
+  try{const d=JSON.parse(await f.text());list=(Array.isArray(d)?d:d.kandidaten).filter(x=>x&&x.id&&x.name);if(!Array.isArray(list))throw 0}
+  catch{toast("Die Datei ist keine gültige Kandidatenliste.");return}
+  try{await commit(list,"Liste importiert ("+list.length+" Kandidaten)");toast(list.length+" Kandidaten importiert und veröffentlicht")}
+  catch(err){toast(errText(err))}
 });
 
-loadLocal();render();
+render();
+(async()=>{
+  let saved=null;try{saved=localStorage.getItem(TKEY)}catch{}
+  if(saved){try{await login(saved,true);return}catch{}}
+  loadPublic();
+})();
 </script>
 
 </body>
